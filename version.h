@@ -1,1 +1,4 @@
 #define HEXFIEND_VERSION 2.16
+
+
+#define COLDFIRE_VERSION 0.01
