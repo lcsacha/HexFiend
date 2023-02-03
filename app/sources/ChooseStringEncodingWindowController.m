@@ -163,11 +163,10 @@
         encoding = [(AppDelegate *)[NSApp delegate] defaultStringEncoding];
     }
     
-    // we don't need to do anything if the currently selected row matches the current encoding
+    // we don't need to do anything if the currently selected row already matches the current encoding
     if (encoding) {
-     
-        // TEMP:LCS (not implemetned yet)
-        
+        NSInteger row = [tableView selectedRow];
+        if ((row != -1)&&([[activeEncodings objectAtIndex:row] matchesEncoding:encoding])) {return;}
     }
     
     _isUpdatingListOrSelection = TRUE;
