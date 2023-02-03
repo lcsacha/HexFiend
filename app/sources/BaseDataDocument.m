@@ -19,6 +19,7 @@
 static const char *const kProgressContext = "context";
 
 NSString * const BaseDataDocumentDidChangeStringEncodingNotification = @"BaseDataDocumentDidChangeStringEncodingNotification";
+NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification = @"BaseDataDocumentDidBecomeCurrentDocumentNotification";
 
 enum {
     HFSaveSuccessful = 0,
@@ -376,6 +377,11 @@ static inline Class preferredByteArrayClass(void) {
     CGFloat resultingWidthInLayoutCoordinates = [layoutRepresenter minimumViewWidthForLayoutInProposedWidth:proposedSizeInLayoutCoordinates.width];
     NSSize resultSize = [layoutView convertSize:NSMakeSize(resultingWidthInLayoutCoordinates, proposedSizeInLayoutCoordinates.height) toView:nil];
     return resultSize;
+}
+
+
+- (void) windowDidBecomeMain: (NSNotification *) notification {
+    [[NSNotificationCenter defaultCenter] postNotificationName:BaseDataDocumentDidBecomeCurrentDocumentNotification object:self userInfo:nil];
 }
 
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
@@ -917,9 +923,6 @@ static inline Class preferredByteArrayClass(void) {
 
 - (void)setStringEncodingFromMenuItem:(NSMenuItem *)item {
     [self setStringEncoding:item.representedObject];
-    
-    /* Call to the delegate so it sets the default */
-    [(AppDelegate*)[NSApp delegate] setStringEncodingFromMenuItem:item];
 }
 
 

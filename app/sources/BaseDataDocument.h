@@ -14,6 +14,7 @@
 @class HFBinaryTextRepresenter;
 
 extern NSString * const BaseDataDocumentDidChangeStringEncodingNotification;
+extern NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification;
 
 @interface BaseDataDocument : NSDocument <NSWindowDelegate, DragDropDelegate> {
     IBOutlet NSView *containerView;
