@@ -210,14 +210,55 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
     }
 }
 
+
+- (void)setDefaultFontName:(NSString *)fontName
+{
+    [[NSUserDefaults standardUserDefaults] setObject:fontName forKey:@"DefaultFontName"];
+}
+
 - (void)setFontFromMenuItem:(NSMenuItem *)item {
     NSFont *font = [item representedObject];
     HFASSERT([font isKindOfClass:[NSFont class]]);
-    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
-    NSFont *documentFont = [document font];
-    font = [[NSFontManager sharedFontManager] convertFont: font toSize: [documentFont pointSize]];
-    [document setFont:font registeringUndo:YES];
+
+    NSLog(@"AppDelegate - setFontFromMenuItem:");
+    [self setDefaultFontName:[font fontName]];
+    
+    // TODO: LCS - need to update font panel
 }
+
+- (void)setDefaultFontSize:(CGFloat)pointSize
+{
+    [[NSUserDefaults standardUserDefaults] setDouble:(double)pointSize forKey:@"DefaultFontSize"];
+}
+
+- (void)setFontSizeFromMenuItem:(NSMenuItem *)item {
+    NSLog(@"AppDelegate - setFontSizeFromMenuItem:");
+    [self setDefaultFontSize:(CGFloat)[item tag]];
+
+    // TODO: LCS - might need to update font panel?
+}
+
+- (IBAction)increaseFontSize:(id)sender {
+    
+    NSLog(@"AppDelegate - increaseFontSize:");
+    CGFloat size = [[NSUserDefaults standardUserDefaults] doubleForKey:@"DefaultFontSize"] + 1.0;
+    [self setDefaultFontSize:size];
+
+    // TODO: LCS - might need to update font panel?
+    
+}
+
+- (IBAction)decreaseFontSize:(id)sender {
+    
+    NSLog(@"AppDelegate - decreaseFontSize:");
+    CGFloat size = [[NSUserDefaults standardUserDefaults] doubleForKey:@"DefaultFontSize"] - 1.0;
+    [self setDefaultFontSize:size];
+
+    // TODO: LCS - might need to update font panel?
+    
+}
+
+
 
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
     SEL sel = [item action];
