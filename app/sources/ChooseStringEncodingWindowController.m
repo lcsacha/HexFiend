@@ -98,11 +98,11 @@
     if (_isUpdatingListOrSelection) {return TRUE;}
     
     // allow selection to change if user clicked on another valid row to switch encoding
-    NSLog(@"selectionShouldChangeInTableView: -- clickedRow is %ld",[tableView clickedRow]);
+//    NSLog(@"selectionShouldChangeInTableView: -- clickedRow is %ld",[tableView clickedRow]);
     if ([tableView clickedRow] != -1) {return TRUE;}
     
     // also need to allow selection change if user is changing selection with up/down arrows
-    NSLog(@"selectionShouldChangeInTableView: -- event type is %ld (NSEventTypeKeyDown is %ld)", [[[self window] currentEvent] type], NSEventTypeKeyDown);
+//    NSLog(@"selectionShouldChangeInTableView: -- event type is %ld (NSEventTypeKeyDown is %ld)", [[[self window] currentEvent] type], NSEventTypeKeyDown);
     if ([[[self window] currentEvent] type] == NSEventTypeKeyDown) {return TRUE;}
     
     // prevent currently selected row from being deselected if user clicks in empty space below available encodings
@@ -147,7 +147,7 @@
 
 - (void)activeEncodingChanged:(NSNotification * __unused)note
 {
-    NSLog(@"Received activeEncodingChanged:notification");
+//    NSLog(@"Received activeEncodingChanged:notification");
     if (self.window.visible == TRUE) {[self matchSelectionToActiveEncoding];}
 }
 
@@ -169,13 +169,21 @@
         if ((row != -1)&&([[activeEncodings objectAtIndex:row] matchesEncoding:encoding])) {return;}
     }
     
+    // set current selection to row that matches encoding
+    [self setSelectedEncoding:encoding];
+    
+    return;
+}
+
+- (void)setSelectedEncoding:(HFStringEncoding *)encoding
+{
     _isUpdatingListOrSelection = TRUE;
     
     // select the current encoding in the list if it hasn't been filtered away, otherwise deselect all
     if (encoding) {
         // get the index of the first encoding choice that matches the current encoding
         NSUInteger row = [activeEncodings indexOfObjectPassingTest:^BOOL(HFEncodingChoice *choice, NSUInteger __unused idx, BOOL *__unused stop) {return [choice matchesEncoding:encoding];}];
-        NSLog(@"matchSelectionToActiveEncoding -- row matching encoding is %ld", row);
+//        NSLog(@"setSelectedEncoding: -- row matching encoding is %ld", row);
         if (row != NSNotFound) {[tableView selectRowIndexes:[NSIndexSet indexSetWithIndex:row] byExtendingSelection:FALSE];}
         else {[tableView deselectAll:self];}    // current encoding is not in the filtered list
     } else {
@@ -186,6 +194,5 @@
     _isUpdatingListOrSelection = FALSE;
     return;
 }
-
 
 @end
