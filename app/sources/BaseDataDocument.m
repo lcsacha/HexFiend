@@ -18,6 +18,7 @@
 
 static const char *const kProgressContext = "context";
 
+NSString * const BaseDataDocumentDidChangeFontNotification = @"BaseDataDocumentDidChangeFontNotification";
 NSString * const BaseDataDocumentDidChangeStringEncodingNotification = @"BaseDataDocumentDidChangeStringEncodingNotification";
 NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification = @"BaseDataDocumentDidBecomeCurrentDocumentNotification";
 
@@ -877,10 +878,10 @@ static inline Class preferredByteArrayClass(void) {
     [controller setFont:font];
     [self relayoutAndResizeWindowForBytesPerLine:bytesPerLine];
     currentlySettingFont = NO;
+    
+    [[NSNotificationCenter defaultCenter] postNotificationName:BaseDataDocumentDidChangeFontNotification object:self userInfo:nil];
+    
     [window display];
-    NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
-    [defs setDouble:[font pointSize] forKey:@"DefaultFontSize"];
-    [defs setObject:[font fontName] forKey:@"DefaultFontName"];
 }
 
 - (void)setFont:(NSFont *)val {
