@@ -13,6 +13,7 @@
 @class HFColumnRepresenter;
 @class HFBinaryTextRepresenter;
 
+extern NSString * const BaseDataDocumentDidChangeFontNotification;
 extern NSString * const BaseDataDocumentDidChangeStringEncodingNotification;
 extern NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification;
 
