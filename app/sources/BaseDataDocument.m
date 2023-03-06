@@ -892,26 +892,6 @@ static inline Class preferredByteArrayClass(void) {
 }
 
 
-/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
-- (void)setFontSizeFromMenuItem:(NSMenuItem *)item {
-    NSString *fontName = [[self font] fontName];
-    [self setFont:[NSFont fontWithName:fontName size:(CGFloat)[item tag]] registeringUndo:YES];
-}
-
-- (IBAction)increaseFontSize:(id)sender {
-    USE(sender);
-    NSFont *font = [self font];
-    [self setFont:[NSFont fontWithName:[font fontName] size:[font pointSize] + 1] registeringUndo:YES];
-}
-
-- (IBAction)decreaseFontSize:(id)sender {
-    USE(sender);
-    NSFont *font = [self font];
-    [self setFont:[NSFont fontWithName:[font fontName] size:[font pointSize] - 1] registeringUndo:YES];
-}
-*/
-
-
 - (HFStringEncoding *)stringEncoding {
     return [(HFStringEncodingTextRepresenter *)asciiRepresenter encoding];
 }
@@ -925,11 +905,6 @@ static inline Class preferredByteArrayClass(void) {
     [[NSNotificationCenter defaultCenter] postNotificationName:BaseDataDocumentDidChangeStringEncodingNotification object:self userInfo:nil];
 }
 
-/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
-- (void)setStringEncodingFromMenuItem:(NSMenuItem *)item {
-    [self setStringEncoding:item.representedObject];
-}
-*/
 
 - (IBAction)setAntialiasFromMenuItem:(id)sender {
     USE(sender);
@@ -1004,15 +979,6 @@ static inline Class preferredByteArrayClass(void) {
                 return NO;
         }
     }
-    /*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
-    else if (action == @selector(setFontSizeFromMenuItem:)) {
-        [item setState:[[self font] pointSize] == [item tag]];
-        return YES;
-    }
-    else if (action == @selector(decreaseFontSize:)) {
-        return [[self font] pointSize] >= 5.; //5 is our minimum font size
-    }
-    */
     else if (action == @selector(setAntialiasFromMenuItem:)) {
         [item setState:[controller shouldAntialias]];
         return YES;
@@ -1777,27 +1743,6 @@ cancelled:;
     } // @autoreleasepool
     return items;
 }
-
-/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
-- (IBAction)showFontPanel:(id)sender {
-    NSFontPanel *panel = [NSFontPanel sharedFontPanel];
-    [panel orderFront:sender];
-    [panel setPanelFont:[self font] isMultiple:NO];
-}
-
-- (void)changeFont:(id)sender {
-    [self setFont:[sender convertFont:[self font]] registeringUndo:YES];
-}
-
-- (NSFontPanelModeMask)validModesForFontPanel:(NSFontPanel * __unused)fontPanel {
-    // NSFontPanel can choose color and style, but Hex Fiend only supports
-    // customizing the font face, so only return that for the mask. This method
-    // is part of the NSFontChanging protocol.
-    // Note: as of 10.15.2, even with no other mask set, the font panel still shows
-    // a gear pop up button that allows bringing up the Color panel.
-    return NSFontPanelModeMaskFace;
-}
-*/
  
  
 - (IBAction)modifyByteGrouping:(id)sender {
