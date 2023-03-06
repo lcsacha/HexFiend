@@ -7,6 +7,7 @@
 
 #import "ChooseStringEncodingWindowController.h"
 #import "BaseDataDocument.h"
+#import "MyDocumentController.h"
 #import "AppDelegate.h"
 #import <HexFiend/HFEncodingManager.h>
 
@@ -60,9 +61,6 @@
     [self populateStringEncodings];
     [tableView reloadData];
     
-    // register for notifications which indicate that we might need to update selected row (current document changed or encoding of current document changed)
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(activeEncodingChanged:) name:BaseDataDocumentDidBecomeCurrentDocumentNotification object:nil];
-    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(activeEncodingChanged:) name:BaseDataDocumentDidChangeStringEncodingNotification object:nil];
 }
 
 - (void)showWindow:(id)sender {
@@ -118,15 +116,9 @@
     NSInteger row = tableView.selectedRow;
     if (row == -1) {return;}
     
-    /* Tell the front document (if any), otherwise tell the app delegate */
+    /* Tell the app delegate. It will take care of notifying the current document (if any), and/or updating the defaults as needed. */
     HFStringEncoding *encoding = activeEncodings[row].encoding;
-    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
-    if (document) {
-        HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
-        [document setStringEncoding:encoding];
-    } else {
-        [(AppDelegate *)[NSApp delegate] setStringEncoding:encoding];
-    }
+    [(AppDelegate *)[NSApp delegate] setStringEncoding:encoding];
 }
 
 
@@ -144,12 +136,6 @@
     _isUpdatingListOrSelection = FALSE;
 }
 
-
-- (void)activeEncodingChanged:(NSNotification * __unused)note
-{
-//    NSLog(@"Received activeEncodingChanged:notification");
-    if (self.window.visible == TRUE) {[self matchSelectionToActiveEncoding];}
-}
 
 - (void)matchSelectionToActiveEncoding
 {

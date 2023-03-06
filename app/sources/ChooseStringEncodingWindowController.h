@@ -16,4 +16,7 @@
 // updates the current selection to the row that matches encoding (doesn't affect any documents)
 - (void)setSelectedEncoding:(HFStringEncoding *)encoding;
 
+// updates the current selection to match the current document (if any) or otherwise the app default encoding
+- (void)matchSelectionToActiveEncoding;
+
 @end

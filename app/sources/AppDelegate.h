@@ -34,6 +34,7 @@
 - (IBAction)openPreferences:(id)sender;
 
 @property (readonly) HFStringEncoding *defaultStringEncoding;
+@property (readonly) NSFont *defaultFont;
 
 - (void)buildByteGroupingMenu;
 

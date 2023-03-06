@@ -21,6 +21,7 @@ static const char *const kProgressContext = "context";
 NSString * const BaseDataDocumentDidChangeFontNotification = @"BaseDataDocumentDidChangeFontNotification";
 NSString * const BaseDataDocumentDidChangeStringEncodingNotification = @"BaseDataDocumentDidChangeStringEncodingNotification";
 NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification = @"BaseDataDocumentDidBecomeCurrentDocumentNotification";
+NSString * const BaseDataDocumentDidResignCurrentDocumentNotification = @"BaseDataDocumentDidResignCurrentDocumentNotification";
 
 enum {
     HFSaveSuccessful = 0,
@@ -100,8 +101,6 @@ static inline Class preferredByteArrayClass(void) {
             @"AntialiasText"   : @YES,
             @"ShowCallouts"    : @YES,
             @"HideNullBytes"   : @NO,
-            @"DefaultFontName" : HFDEFAULT_FONT,
-            @"DefaultFontSize" : @(HFDEFAULT_FONTSIZE),
             @"BytesPerColumn"  : @4,
             @"DefaultEditMode" : @(HFInsertMode),
             @"BinaryTemplateSelectionColor" : [NSArchiver archivedDataWithRootObject:[NSColor lightGrayColor]],
@@ -142,8 +141,6 @@ static inline Class preferredByteArrayClass(void) {
             @"AntialiasText" : @YES,
             @"ShowCallouts" : @YES,
             @"HideNullBytes" : @NO,
-            @"DefaultFontName" : HFDEFAULT_FONT,
-            @"DefaultFontSize" : @(HFDEFAULT_FONTSIZE),
             @"BytesPerColumn" : @4,
             @"LineNumberFormat" : @0,
             USERDEFS_KEY_FOR_REP(columnRepresenter) : @NO,
@@ -382,8 +379,15 @@ static inline Class preferredByteArrayClass(void) {
 
 
 - (void) windowDidBecomeMain: (NSNotification *) notification {
+//    NSLog(@"BaseDataDocument - windowDidBecomeMain: %@", self);
     [[NSNotificationCenter defaultCenter] postNotificationName:BaseDataDocumentDidBecomeCurrentDocumentNotification object:self userInfo:nil];
 }
+
+- (void)windowDidResignMain:(NSNotification *)notification {
+//    NSLog(@"BaseDataDocument - windowDidResignMain: %@", self);
+    [[NSNotificationCenter defaultCenter] postNotificationName:BaseDataDocumentDidResignCurrentDocumentNotification object:self userInfo:nil];
+}
+
 
 - (NSSize)windowWillResize:(NSWindow *)sender toSize:(NSSize)frameSize {
     USE(sender);
@@ -717,12 +721,7 @@ static inline Class preferredByteArrayClass(void) {
     
     [self setShouldLiveReload:[controller shouldLiveReload]];
     
-    NSString *fontName = [defs stringForKey:@"DefaultFontName"];
-    CGFloat fontSize = [defs floatForKey:@"DefaultFontSize"];
-    NSFont *font = [NSFont fontWithName:fontName size:fontSize];
-    if (font != nil) {
-        [controller setFont: font];
-    }
+    [controller setFont:[(AppDelegate *)NSApp.delegate defaultFont]];
     
     [self setStringEncoding:[(AppDelegate *)NSApp.delegate defaultStringEncoding]];
     
@@ -892,6 +891,8 @@ static inline Class preferredByteArrayClass(void) {
     return [controller font];
 }
 
+
+/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
 - (void)setFontSizeFromMenuItem:(NSMenuItem *)item {
     NSString *fontName = [[self font] fontName];
     [self setFont:[NSFont fontWithName:fontName size:(CGFloat)[item tag]] registeringUndo:YES];
@@ -908,6 +909,8 @@ static inline Class preferredByteArrayClass(void) {
     NSFont *font = [self font];
     [self setFont:[NSFont fontWithName:[font fontName] size:[font pointSize] - 1] registeringUndo:YES];
 }
+*/
+
 
 - (HFStringEncoding *)stringEncoding {
     return [(HFStringEncodingTextRepresenter *)asciiRepresenter encoding];
@@ -922,10 +925,11 @@ static inline Class preferredByteArrayClass(void) {
     [[NSNotificationCenter defaultCenter] postNotificationName:BaseDataDocumentDidChangeStringEncodingNotification object:self userInfo:nil];
 }
 
+/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
 - (void)setStringEncodingFromMenuItem:(NSMenuItem *)item {
     [self setStringEncoding:item.representedObject];
 }
-
+*/
 
 - (IBAction)setAntialiasFromMenuItem:(id)sender {
     USE(sender);
@@ -1000,13 +1004,15 @@ static inline Class preferredByteArrayClass(void) {
                 return NO;
         }
     }
+    /*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
     else if (action == @selector(setFontSizeFromMenuItem:)) {
         [item setState:[[self font] pointSize] == [item tag]];
         return YES;
     }
     else if (action == @selector(decreaseFontSize:)) {
         return [[self font] pointSize] >= 5.; //5 is our minimum font size
-    }    
+    }
+    */
     else if (action == @selector(setAntialiasFromMenuItem:)) {
         [item setState:[controller shouldAntialias]];
         return YES;
@@ -1772,6 +1778,7 @@ cancelled:;
     return items;
 }
 
+/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
 - (IBAction)showFontPanel:(id)sender {
     NSFontPanel *panel = [NSFontPanel sharedFontPanel];
     [panel orderFront:sender];
@@ -1790,7 +1797,9 @@ cancelled:;
     // a gear pop up button that allows bringing up the Color panel.
     return NSFontPanelModeMaskFace;
 }
-
+*/
+ 
+ 
 - (IBAction)modifyByteGrouping:(id)sender {
     NSUInteger newBytesPerColumn = (NSUInteger)[sender tag];
     [self setByteGrouping:newBytesPerColumn];

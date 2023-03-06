@@ -16,6 +16,8 @@
 extern NSString * const BaseDataDocumentDidChangeFontNotification;
 extern NSString * const BaseDataDocumentDidChangeStringEncodingNotification;
 extern NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification;
+extern NSString * const BaseDataDocumentDidResignCurrentDocumentNotification;
+
 
 @interface BaseDataDocument : NSDocument <NSWindowDelegate, DragDropDelegate> {
     IBOutlet NSView *containerView;
@@ -76,12 +78,16 @@ extern NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification;
 @property (nonatomic, copy) NSFont *font;
 - (void)setFont:(NSFont *)font registeringUndo:(BOOL)undo;
 
+/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
 - (IBAction)increaseFontSize:(id)sender;
 - (IBAction)decreaseFontSize:(id)sender;
+*/
 
 - (NSWindow *)window;
 
+/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
 - (IBAction)showFontPanel:sender;
+ */
 - (IBAction)setAntialiasFromMenuItem:sender;
 - (IBAction)setColorBytesFromMenuItem:sender;
 
@@ -116,7 +122,9 @@ extern NSString * const BaseDataDocumentDidBecomeCurrentDocumentNotification;
 - (NSArray *)runningOperationViews;
 
 @property (nonatomic) HFStringEncoding *stringEncoding;
+/*  // TODO: LCS (consoldating all font/encoding menu and panel event handling to app delegate)
 - (IBAction)setStringEncodingFromMenuItem:(NSMenuItem *)item;
+*/
 
 @property (nonatomic, getter=isTransient) BOOL transient;
 

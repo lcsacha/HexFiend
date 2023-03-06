@@ -11,6 +11,10 @@
 #import "HFOpenAccessoryViewController.h"
 #import "ExtendedAttributeDataDocument.h"
 
+
+NSString * const MDCCurrentDocumentDidChangeNotification = @"MDCCurrentDocumentDidChangeNotification";
+
+
 @interface MyDocumentController ()
 
 @property HFOpenAccessoryViewController *openAccessoryController;
@@ -18,6 +22,25 @@
 @end
 
 @implementation MyDocumentController
+{
+    bool _hasPendingCurrentDocumentNotification;
+}
+
+- (instancetype)init {
+    
+    self = [super init];
+    
+    if (self)
+    {
+        // register document controller for notifications from documents when they become or resign main window
+        [self registerForDocumentNotifications];
+        
+    }
+    
+    return self;
+}
+
+
 
 - (void)noteNewRecentDocumentURL:(NSURL *)absoluteURL {
     /* Work around the fact that LS crashes trying to fetch icons for block and character devices.  Let's just prevent it for all files that aren't normal or directories, heck. */
@@ -118,6 +141,37 @@
         return doc;
     }
     return [super makeDocumentWithContentsOfURL:url ofType:typeName error:outError];
+}
+
+
+- (void)registerForDocumentNotifications
+{
+    _hasPendingCurrentDocumentNotification = FALSE;
+    
+    // register for notifications which indicate that one of our document windows gained or resigned main
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(currentDocumentWillChange:) name:BaseDataDocumentDidBecomeCurrentDocumentNotification object:nil];
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(currentDocumentWillChange:) name:BaseDataDocumentDidResignCurrentDocumentNotification object:nil];
+    
+}
+
+- (void)currentDocumentWillChange:(NSNotification *)note
+{
+//    NSLog(@"MyDocumentController - currentDocumentWillChange:");
+    
+    if (!_hasPendingCurrentDocumentNotification)
+    {
+        _hasPendingCurrentDocumentNotification = TRUE;
+        
+        // send out a notification that the current document changed, after the current event has finished being resolved
+        [self performSelectorOnMainThread:@selector(currentDocumentDidChange:) withObject:self waitUntilDone:FALSE];
+    }
+}
+
+- (void)currentDocumentDidChange:(id)sender
+{
+    NSLog(@"MyDocumentController - currentDocumentDidChange:");
+    _hasPendingCurrentDocumentNotification = FALSE;
+    [[NSNotificationCenter defaultCenter] postNotificationName:MDCCurrentDocumentDidChangeNotification object:self userInfo:nil];
 }
 
 @end

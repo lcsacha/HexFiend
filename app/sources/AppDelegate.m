@@ -45,8 +45,11 @@
     dispatch_once(&onceToken, ^{
         /* Defaults that should be standardized across app or are only used to configure app */
         NSDictionary *defs = @{
-            @"MENU_systemStringEncodings"   : @"ASCII,MacRoman,ISOLatin1,ISOLatin2,UTF16LE,UTF16BE",    // comma separated list of identifiers for system string encodings displayed in menu
-            
+            @"Menu_systemStringEncodings"    : @"ASCII,MacRoman,ISOLatin1,ISOLatin2,UTF16LE,UTF16BE",    // comma separated list of identifiers for system string encodings displayed in menu
+            @"AlwaysUseRecentFontAndEcodingAsDefault" : @(TRUE),    // if TRUE, the app always replaces the default font and encoding with the user's most recent selection (existing behavior as of 2.16); otherwise, the app only changes the default font and encoding if the user makes a change when there is no current document
+            @"DefaultFontName"             : HFDEFAULT_FONT,
+            @"DefaultFontSize"             : @(HFDEFAULT_FONTSIZE),
+            @"DefaultStringEncoding"        : @"ASCII"
         };
         [[NSUserDefaults standardUserDefaults] registerDefaults:defs];
     });
@@ -115,10 +118,14 @@
         NSData *data = [userInfo objectForKey:@"data"];
         [weakSelf openData:data];
     }];
+    
+    
+    // register for document controller notifications which indicate that we might need to update encoding/font accessory panels because current document changed
+    [[NSNotificationCenter defaultCenter] addObserver:self selector:@selector(activeDocumentWindowChanged:) name:MDCCurrentDocumentDidChangeNotification object:nil];
 }
 
 - (void)buildEncodingMenu {
-    NSArray *defaultEncodings = [[[NSUserDefaults standardUserDefaults] stringForKey:@"MENU_systemStringEncodings"] componentsSeparatedByString:@","];
+    NSArray *defaultEncodings = [[[NSUserDefaults standardUserDefaults] stringForKey:@"Menu_systemStringEncodings"] componentsSeparatedByString:@","];
 //    NSLog(@"%@",[defaultEncodings description]);
     HFEncodingManager *encodingManager = [HFEncodingManager shared];
     for (NSString *encoding in defaultEncodings) {
@@ -226,19 +233,94 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
 }
 
 
-- (void)setDefaultFontName:(NSString *)fontName
-{
-    [[NSUserDefaults standardUserDefaults] setObject:fontName forKey:@"DefaultFontName"];
+- (IBAction)showFontPanel:(id) sender {
+    NSFontPanel *panel = [NSFontPanel sharedFontPanel];
+    
+    [panel setPanelFont:[self defaultFont] isMultiple:NO];
+    [panel orderFront:sender];
 }
+
+- (void)changeFont:(id)sender
+{
+//    NSLog(@"AppDelegate - changeFont: -- sender is %@", sender);
+
+    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+    if (document) {
+        HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
+        
+        // update font for existing fontSize used in document
+        NSFont *font = [document font];
+        font = [[NSFontPanel sharedFontPanel] panelConvertFont:font];
+        
+        [document setFont:font registeringUndo:YES];
+        
+        // always save the most recently selected font to defaults if that behavior is specified
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"AlwaysUseRecentFontAndEcodingAsDefault"] == TRUE) {[self setDefaultFontName:[font fontName]];}
+
+    } else {
+        // there is no active current document, so change the font stored in the defaults
+        NSFont *font = [self defaultFont];
+        font = [[NSFontPanel sharedFontPanel] panelConvertFont:font];
+        
+        [self setDefaultFontName:[font fontName]];
+    }
+}
+
+- (NSFontPanelModeMask)validModesForFontPanel:(NSFontPanel * __unused)fontPanel {
+    // NSFontPanel can choose color and style, but Hex Fiend only supports
+    // customizing the font face, so only return that for the mask. This method
+    // is part of the NSFontChanging protocol.
+    // Note: as of 10.15.2, even with no other mask set, the font panel still shows
+    // a gear pop up button that allows bringing up the Color panel.
+    return NSFontPanelModeMaskFace;
+}
+
 
 - (void)setFontFromMenuItem:(NSMenuItem *)item {
     NSFont *font = [item representedObject];
     HFASSERT([font isKindOfClass:[NSFont class]]);
 
-    NSLog(@"AppDelegate - setFontFromMenuItem:");
-    [self setDefaultFontName:[font fontName]];
+//    NSLog(@"AppDelegate - setFontFromMenuItem: -- %@", [font fontName]);
     
-    // TODO: LCS - need to update font panel
+    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+    if (document) {
+        HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
+        
+        // update font for existing fontSize used in document
+        font = [NSFont fontWithName:[font fontName] size:[[document font] pointSize]];
+        
+        [document setFont:font registeringUndo:YES];
+        
+        // always save the most recently selected font to defaults if that behavior is specified
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"AlwaysUseRecentFontAndEcodingAsDefault"] == TRUE) {[self setDefaultFontName:[font fontName]];}
+
+    } else {
+        // there is no active current document, so change the font stored in the defaults
+        [self setDefaultFontName:[font fontName]];
+    }
+    
+    // update font panel
+    [[NSFontPanel sharedFontPanel] setPanelFont:font isMultiple:NO];
+}
+
+
+- (NSFont *)defaultFont
+{
+    NSUserDefaults *defs = [NSUserDefaults standardUserDefaults];
+    NSString *fontName = [defs stringForKey:@"DefaultFontName"];
+    CGFloat fontSize = [defs floatForKey:@"DefaultFontSize"];
+    NSFont *font = [NSFont fontWithName:fontName size:fontSize];
+    if (font != nil) {
+        return font;
+    }
+    
+    NSLog(@"Unable to create default font for name '%@' and size '%f'", fontName, fontSize);
+    return [NSFont fontWithName:@"Monaco" size:10.0];
+}
+
+- (void)setDefaultFontName:(NSString *)fontName
+{
+    [[NSUserDefaults standardUserDefaults] setObject:fontName forKey:@"DefaultFontName"];
 }
 
 - (void)setDefaultFontSize:(CGFloat)pointSize
@@ -246,33 +328,65 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
     [[NSUserDefaults standardUserDefaults] setDouble:(double)pointSize forKey:@"DefaultFontSize"];
 }
 
-- (void)setFontSizeFromMenuItem:(NSMenuItem *)item {
-    NSLog(@"AppDelegate - setFontSizeFromMenuItem:");
-    [self setDefaultFontSize:(CGFloat)[item tag]];
 
-    // TODO: LCS - might need to update font panel?
+- (void)setFontSizeFromMenuItem:(NSMenuItem *)item {
+    CGFloat requestedSize = (CGFloat)[item tag];
+    
+//    NSLog(@"AppDelegate - setFontSizeFromMenuItem: %f", requestedSize);
+    
+    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+    if (document) {
+        HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
+        
+        // update font for existing fontSize used in document
+        NSFont *font = [NSFont fontWithName:[[document font] fontName] size:requestedSize];
+        
+        [document setFont:font registeringUndo:YES];
+        
+        // always save the most recently selected font size to defaults if that behavior is specified
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"AlwaysUseRecentFontAndEcodingAsDefault"] == TRUE) {[self setDefaultFontSize:requestedSize];}
+
+    } else {
+        // there is no active current document, so change the font size stored in the defaults
+        [self setDefaultFontSize:requestedSize];
+    }
 }
 
 - (IBAction)increaseFontSize:(id)sender {
-    
-    NSLog(@"AppDelegate - increaseFontSize:");
-    CGFloat size = [[NSUserDefaults standardUserDefaults] doubleForKey:@"DefaultFontSize"] + 1.0;
-    [self setDefaultFontSize:size];
-
-    // TODO: LCS - might need to update font panel?
-    
+//    NSLog(@"AppDelegate - increaseFontSize:");
+    [self updateCurrentFontSizeByAdding:(1.0)];
 }
 
 - (IBAction)decreaseFontSize:(id)sender {
-    
-    NSLog(@"AppDelegate - decreaseFontSize:");
-    CGFloat size = [[NSUserDefaults standardUserDefaults] doubleForKey:@"DefaultFontSize"] - 1.0;
-    [self setDefaultFontSize:size];
-
-    // TODO: LCS - might need to update font panel?
-    
+//    NSLog(@"AppDelegate - decreaseFontSize:");
+    [self updateCurrentFontSizeByAdding:(-1.0)];
 }
 
+- (void)updateCurrentFontSizeByAdding:(CGFloat)delta
+{
+//    NSLog(@"AppDelegate - updateCurrentFontSizeByAdding: %f", delta);
+    
+    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+    if (document) {
+        HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
+        
+        // update font for existing fontSize used in document
+        NSFont *font = [document font];
+        CGFloat requestedSize = [font pointSize] + delta;
+        font = [NSFont fontWithName:[font fontName] size:requestedSize];
+        
+        [document setFont:font registeringUndo:YES];
+        
+        // always save the most recently selected font size to defaults if that behavior is specified
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"AlwaysUseRecentFontAndEcodingAsDefault"] == TRUE) {[self setDefaultFontSize:requestedSize];}
+
+    } else {
+        // there is no active current document, so change the font size stored in the defaults
+        CGFloat requestedSize = [[NSUserDefaults standardUserDefaults] doubleForKey:@"DefaultFontSize"] + delta;
+        [self setDefaultFontSize:requestedSize];
+    }
+    
+}
 
 
 - (BOOL)validateMenuItem:(NSMenuItem *)item {
@@ -283,9 +397,33 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
         if (document) {
             NSFont *font = [document font];
             check = [[item title] isEqualToString:[font displayName]];
+        } else {
+            NSFont *font = [item representedObject];
+            HFASSERT([font isKindOfClass:[NSFont class]]);
+            check = [[[NSUserDefaults standardUserDefaults] stringForKey:@"DefaultFontName"] isEqualToString:[font fontName]];
         }
         [item setState:check];
-        return document != nil;
+        return YES;
+    }
+    else if (sel == @selector(setFontSizeFromMenuItem:)) {
+        // TODO: setting the checkmark for the current size could potentially be migrated to menuNeedsUpdate: instead, so we don't do this for each size item?
+        BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+        if (document) {
+            [item setState:[[document font] pointSize] == [item tag]];
+        } else {
+            CGFloat fontSize = [[NSUserDefaults standardUserDefaults] floatForKey:@"DefaultFontSize"];
+            [item setState:(fontSize == [item tag])];
+        }
+        return YES;
+    }
+    else if (sel == @selector(decreaseFontSize:)) {
+        BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+        if (document) {
+            return [[document font] pointSize] >= 5.0; //5 is our minimum font size
+        } else {
+            CGFloat fontSize = [[NSUserDefaults standardUserDefaults] floatForKey:@"DefaultFontSize"];
+            return (fontSize >= 5.0); //5 is our minimum font size
+        }
     }
     else if (sel == @selector(diffFrontDocuments:)) {
         NSArray *docs = [DiffDocument getFrontTwoDocumentsForDiffing];
@@ -380,18 +518,33 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
 - (HFStringEncoding *)defaultStringEncoding {
     HFEncodingManager *manager = [HFEncodingManager shared];
     id obj = [[NSUserDefaults standardUserDefaults] objectForKey:@"DefaultStringEncoding"];
-    if ([obj isKindOfClass:[NSNumber class]]) {
+    
+    if ([obj isKindOfClass:[NSString class]]) {
+        HFStringEncoding *encodingObj = [manager encodingByIdentifier:obj];
+        if (encodingObj) {
+            return encodingObj;
+        } else {
+            NSLog(@"Failed to find encoding object with identifier %@", obj);
+        }
+
+    } else if ([obj isKindOfClass:[NSNumber class]]) {  // TODO: this option is deprecated in v2.17, and should eventually be removed and fall through to ASCII default
         // Old format just stored encoding raw
         NSStringEncoding encoding = [(NSNumber *)obj integerValue];
         HFNSStringEncoding *encodingObj = [manager systemEncoding:encoding];
         if (encodingObj) {
+            // update defaults to use identifier instead, and then return encoding
+            [[NSUserDefaults standardUserDefaults] setObject:[encodingObj identifier] forKey:@"DefaultStringEncoding"];
             return encodingObj;
         } else {
             NSLog(@"Failed to find encoding object for %ld", encoding);
         }
-    } else if ([obj isKindOfClass:[NSData class]]) {
+    } else if ([obj isKindOfClass:[NSData class]]) {  // TODO: this option is deprecated in v2.17, and should eventually be removed and fall through to ASCII default
         HFStringEncoding *encodingObj = [NSKeyedUnarchiver unarchiveObjectWithData:obj];
         if ([encodingObj isKindOfClass:[HFCustomEncoding class]]) {
+            // if the custom encoding exists in manager, update defaults to use the identifier instead, and then return encoding
+            // if it doesn't we leave the default alone for now to avoid losing it, but it's going to be gone forever if the user ever changes the default encoding
+            HFStringEncoding *local = [manager encodingByIdentifier:[encodingObj identifier]];
+            if (local) {[[NSUserDefaults standardUserDefaults] setObject:[encodingObj identifier] forKey:@"DefaultStringEncoding"];}
             return encodingObj;
         } else if ([encodingObj isKindOfClass:[HFNSStringEncoding class]]) {
             // we only encode the raw encoding in HFNSStringEncoding, so get the
@@ -399,6 +552,8 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
             HFNSStringEncoding *nsencoding = (HFNSStringEncoding *)encodingObj;
             encodingObj = [manager systemEncoding:nsencoding.encoding];
             if (encodingObj) {
+                // update defaults to use identifier instead, and then return encoding
+                [[NSUserDefaults standardUserDefaults] setObject:[encodingObj identifier] forKey:@"DefaultStringEncoding"];
                 return encodingObj;
             } else {
                 NSLog(@"Failed to find encoding object for %ld", nsencoding.encoding);
@@ -406,15 +561,36 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
         } else {
             NSLog(@"Invalid encoding object: %@", encodingObj);
         }
+        
+    } else {
+        NSLog(@"Unrecognized object stored as default encoding: %@", obj);
+//        [[NSUserDefaults standardUserDefaults] removeObjectForKey:@"DefaultStringEncoding"];  // TODO: uncomment this line after deprecated options above have been removed
     }
+    
     return manager.ascii;
 }
 
 - (void)setStringEncoding:(HFStringEncoding *)encoding {
-    [[NSUserDefaults standardUserDefaults] setObject:[NSKeyedArchiver archivedDataWithRootObject:encoding] forKey:@"DefaultStringEncoding"];
+//    NSLog(@"AppDelegate - setStringEncoding:");
+    
+    BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+    if (document) {
+        HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
+        
+        [document setStringEncoding:encoding];
+        
+        // always save the most recently selected encoding to defaults if that behavior is specified
+        if ([[NSUserDefaults standardUserDefaults] boolForKey:@"AlwaysUseRecentFontAndEcodingAsDefault"] == TRUE) {[[NSUserDefaults standardUserDefaults] setObject:[encoding identifier] forKey:@"DefaultStringEncoding"];}
+
+    } else {
+        // there is no active current document, so just change the encoding stored in the defaults
+        [[NSUserDefaults standardUserDefaults] setObject:[encoding identifier] forKey:@"DefaultStringEncoding"];
+    }
 }
 
 - (IBAction)setStringEncodingFromMenuItem:(NSMenuItem *)item {
+//    NSLog(@"AppDelegate - setStringEncodingFromMenuItem:");
+    
     HFStringEncoding *encoding = item.representedObject;
     HFASSERT([encoding isKindOfClass:[HFStringEncoding class]]);
     [self setStringEncoding:encoding];
@@ -519,6 +695,30 @@ static NSComparisonResult compareFontDisplayNames(NSFont *a, NSFont *b, void *un
                          rightFileName:[[rightFile lastPathComponent] stringByDeletingPathExtension]];
     }
 }
+
+
+- (void)activeDocumentWindowChanged:(NSNotification * __unused)note
+{
+    NSLog(@"AppDelegate - activeDocumentWindowChanged:");
+    
+    // tell string encoding window to update selected encoding if it is visible
+    if (chooseStringEncoding.window.visible == TRUE) {[chooseStringEncoding matchSelectionToActiveEncoding];}
+    
+    // tell sharedfont panel to update selected font if it is visible
+    if ([[NSFontPanel sharedFontPanel] isVisible])
+    {
+        BaseDataDocument *document = [[NSDocumentController sharedDocumentController] currentDocument];
+        if (document) {
+            HFASSERT([document isKindOfClass:[BaseDataDocument class]]);
+            [[NSFontPanel sharedFontPanel] setPanelFont:[document font] isMultiple:NO];
+        } else {
+            // there is no active current document, so change the font stored in the defaults
+            [[NSFontPanel sharedFontPanel] setPanelFont:[self defaultFont] isMultiple:NO];
+        }
+    }
+}
+
+
 
 @end
 
